@@ -34,14 +34,14 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
         {children}
       </div>
 
-      {/* Floating Compose Button */}
+      {/* Floating Compose Button - Bottom Right */}
       <button
         onClick={() => setIsComposeOpen(true)}
-        className="fixed bottom-6 left-6 w-14 h-14 bg-primary-600 hover:bg-primary-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center group z-40"
+        className="fixed bottom-8 right-8 w-16 h-16 bg-primary-600 hover:bg-primary-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center group z-40"
         title="Compose new message"
       >
-        <Plus className="h-6 w-6" />
-        <span className="absolute left-full ml-3 px-3 py-1.5 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+        <Plus className="h-7 w-7" />
+        <span className="absolute right-full mr-3 px-3 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
           Compose
         </span>
       </button>
