@@ -1,7 +1,9 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
+import { Plus } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import ConversationList from '../components/ConversationList';
 import ReconnectionBanner from '../components/ReconnectionBanner';
+import { ComposeModal } from '../components/ComposeModal';
 import { useAppStore } from '../stores/appStore';
 
 interface InboxLayoutProps {
@@ -10,6 +12,7 @@ interface InboxLayoutProps {
 
 export default function InboxLayout({ children }: InboxLayoutProps) {
   const sidebarOpen = useAppStore((state) => state.sidebarOpen);
+  const [isComposeOpen, setIsComposeOpen] = useState(false);
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
@@ -30,6 +33,22 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
       <div className="flex-1 flex flex-col min-w-0">
         {children}
       </div>
+
+      {/* Floating Compose Button */}
+      <button
+        onClick={() => setIsComposeOpen(true)}
+        className="fixed bottom-6 left-6 w-14 h-14 bg-primary-600 hover:bg-primary-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center group z-40"
+        title="Compose new message"
+      >
+        <Plus className="h-6 w-6" />
+        <span className="absolute left-full ml-3 px-3 py-1.5 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+          Compose
+        </span>
+      </button>
+
+      {/* Compose Modal */}
+      <ComposeModal isOpen={isComposeOpen} onClose={() => setIsComposeOpen(false)} />
     </div>
   );
 }
+

@@ -178,6 +178,98 @@ export class TelegramProvider implements MessagingProvider {
     }
   }
 
+  async sendNewMessage(
+    account: ConnectedAccount,
+    message: { chatId: string; content: string },
+    userId: string
+  ): Promise<{
+    messageId: string;
+    conversationId: string;
+    timestamp: Date;
+  }> {
+    const credentials = JSON.parse(decrypt(account.encryptedCredential)) as TelegramCredentials;
+    const bot = this.getBot(credentials);
+
+    try {
+      // Send the message
+      const sentMessage = await bot.telegram.sendMessage(message.chatId, message.content);
+
+      const timestamp = new Date(sentMessage.date * 1000);
+
+      // Get chat info
+      const chat = sentMessage.chat;
+      const conversationTitle =
+        chat.type === 'private'
+          ? `${chat.first_name || ''}${chat.last_name ? ' ' + chat.last_name : ''}`
+          : chat.title || 'Telegram Chat';
+
+      // Create or find conversation
+      const conversation = await prisma.conversation.upsert({
+        where: {
+          userId_connectedAccountId_externalConversationId: {
+            userId,
+            connectedAccountId: account.id,
+            externalConversationId: message.chatId,
+          },
+        },
+        create: {
+          userId,
+          connectedAccountId: account.id,
+          externalConversationId: message.chatId,
+          title: conversationTitle,
+          lastMessagePreview: message.content.substring(0, 100),
+          lastActivityAt: timestamp,
+        },
+        update: {
+          lastMessagePreview: message.content.substring(0, 100),
+          lastActivityAt: timestamp,
+        },
+      });
+
+      // Get bot info for sender details
+      const botInfo = await bot.telegram.getMe();
+
+      // Create message record
+      await prisma.message.create({
+        data: {
+          conversationId: conversation.id,
+          providerMessageId: sentMessage.message_id.toString(),
+          senderExternalId: botInfo.id.toString(),
+          senderName: botInfo.first_name,
+          senderUsername: botInfo.username,
+          content: message.content,
+          type: 'text',
+          direction: 'outgoing',
+          status: 'sent',
+          timestamp,
+          metadata: {
+            chatType: chat.type,
+            chatId: chat.id,
+          },
+        },
+      });
+
+      // Emit via Socket.IO
+      try {
+        const { io } = require('../app');
+        io.to(`user:${userId}`).emit('conversation:updated', {
+          conversationId: conversation.id,
+        });
+      } catch (error) {
+        console.error('Failed to emit socket event:', error);
+      }
+
+      return {
+        messageId: sentMessage.message_id.toString(),
+        conversationId: conversation.id,
+        timestamp,
+      };
+    } catch (error) {
+      console.error('Error sending new Telegram message:', error);
+      throw new Error('Failed to send Telegram message');
+    }
+  }
+
   // Helper method to process incoming Telegram updates
   async processUpdate(account: ConnectedAccount, userId: string, update: any): Promise<void> {
     if (!update.message) {

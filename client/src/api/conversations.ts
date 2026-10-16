@@ -70,4 +70,14 @@ export const conversationsApi = {
     const response = await apiClient.post(`/conversations/provider/${provider}/mark-all-read`);
     return response.data.data;
   },
+
+  composeMessage: async (data: {
+    accountId: string;
+    to: string;
+    subject?: string;
+    content: string;
+  }) => {
+    const response = await apiClient.post('/conversations/compose', data);
+    return response.data;
+  },
 };

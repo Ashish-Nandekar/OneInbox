@@ -532,6 +532,90 @@ export class ConversationsController {
     }
   }
 
+  // Compose and send a new message (not a reply)
+  async composeMessage(req: Request, res: Response) {
+    try {
+      const userId = req.user!.id;
+      const { accountId, to, subject, content } = req.body;
+
+      // Validate input
+      if (!accountId || !to || !content) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Account ID, recipient (to), and content are required',
+          },
+        });
+      }
+
+      // Get connected account
+      const account = await prisma.connectedAccount.findFirst({
+        where: {
+          id: accountId,
+          userId,
+        },
+      });
+
+      if (!account) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            code: 'ACCOUNT_NOT_FOUND',
+            message: 'Connected account not found',
+          },
+        });
+      }
+
+      const messagingProvider = providerManager.getProvider(account.provider);
+
+      // For Gmail, check if sendNewEmail method exists
+      if (account.provider === 'gmail' && 'sendNewEmail' in messagingProvider) {
+        const result = await (messagingProvider as any).sendNewEmail(
+          account,
+          { to, subject, content },
+          userId
+        );
+
+        return res.status(201).json({
+          success: true,
+          data: result,
+        });
+      }
+
+      // For Telegram, check if sendNewMessage method exists
+      if (account.provider === 'telegram' && 'sendNewMessage' in messagingProvider) {
+        const result = await (messagingProvider as any).sendNewMessage(
+          account,
+          { chatId: to, content },
+          userId
+        );
+
+        return res.status(201).json({
+          success: true,
+          data: result,
+        });
+      }
+
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'NOT_SUPPORTED',
+          message: 'Compose message not supported for this provider',
+        },
+      });
+    } catch (error) {
+      console.error('Compose message error:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'COMPOSE_FAILED',
+          message: error instanceof Error ? error.message : 'Failed to send message',
+        },
+      });
+    }
+  }
+
   // Helper to create search snippet
   private createSnippet(content: string, query: string, maxLength: number = 150): string {
     const lowerContent = content.toLowerCase();

@@ -422,6 +422,126 @@ export class GmailProvider implements MessagingProvider {
     }
   }
 
+  async sendNewEmail(
+    account: ConnectedAccount,
+    message: { to: string; subject?: string; content: string },
+    userId: string
+  ): Promise<{
+    messageId: string;
+    conversationId: string;
+    threadId: string;
+    timestamp: Date;
+  }> {
+    const credentials = JSON.parse(decrypt(account.encryptedCredential)) as GmailCredentials;
+    const oauth2Client = this.getOAuth2Client(credentials);
+    const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+
+    try {
+      // Get sender email
+      const profile = await gmail.users.getProfile({ userId: 'me' });
+      const fromEmail = profile.data.emailAddress || '';
+
+      // Build RFC-compliant email
+      const email = [
+        `From: ${fromEmail}`,
+        `To: ${message.to}`,
+        `Subject: ${message.subject || '(No Subject)'}`,
+        '',
+        message.content,
+      ].join('\r\n');
+
+      // Encode in base64url
+      const encodedMessage = Buffer.from(email)
+        .toString('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+
+      // Send message
+      const response = await gmail.users.messages.send({
+        userId: 'me',
+        requestBody: {
+          raw: encodedMessage,
+        },
+      });
+
+      const sentMessageId = response.data.id!;
+      const threadId = response.data.threadId!;
+
+      // Fetch the full message to get details
+      const sentMessage = await gmail.users.messages.get({
+        userId: 'me',
+        id: sentMessageId,
+      });
+
+      const subject = this.getHeader(sentMessage.data, 'Subject') || '(No Subject)';
+      const timestamp = new Date(parseInt(sentMessage.data.internalDate || '0'));
+
+      // Create or find conversation
+      const conversation = await prisma.conversation.upsert({
+        where: {
+          userId_connectedAccountId_externalConversationId: {
+            userId,
+            connectedAccountId: account.id,
+            externalConversationId: threadId,
+          },
+        },
+        create: {
+          userId,
+          connectedAccountId: account.id,
+          externalConversationId: threadId,
+          title: `To: ${message.to}`,
+          lastMessagePreview: message.content.substring(0, 100),
+          lastActivityAt: timestamp,
+        },
+        update: {
+          lastMessagePreview: message.content.substring(0, 100),
+          lastActivityAt: timestamp,
+        },
+      });
+
+      // Create message record
+      await prisma.message.create({
+        data: {
+          conversationId: conversation.id,
+          providerMessageId: sentMessageId,
+          senderExternalId: fromEmail,
+          senderName: account.displayName,
+          senderAddress: fromEmail,
+          content: message.content,
+          type: 'email',
+          direction: 'outgoing',
+          status: 'sent',
+          timestamp,
+          metadata: {
+            subject,
+            to: message.to,
+          },
+        },
+      });
+
+      // Emit via Socket.IO
+      try {
+        const { io } = require('../../app');
+        io.to(`user:${userId}`).emit('conversation:updated', {
+          conversationId: conversation.id,
+        });
+      } catch (error) {
+        console.error('Failed to emit socket event:', error);
+      }
+
+      return {
+        messageId: sentMessageId,
+        conversationId: conversation.id,
+        threadId,
+        timestamp,
+      };
+    } catch (error) {
+      console.error('Error sending new Gmail message:', error);
+      throw new Error('Failed to send email');
+    }
+  }
+
   // Helper methods
   private getHeader(message: any, name: string): string | null {
     const headers = message.payload?.headers || [];
