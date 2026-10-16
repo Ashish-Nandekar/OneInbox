@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  connectedAccounts ConnectedAccount[]
+  conversations     Conversation[]
+
+  @@map("users")
+}
+
+enum Provider {
+  gmail
+  telegram
+}
+
+enum AccountStatus {
+  connected
+  disconnected
+  error
+}
+
+model ConnectedAccount {
+  id                 String        @id @default(uuid())
+  userId             String
+  provider           Provider
+  displayName        String
+  externalAccountId  String
+  encryptedCredential String       @db.Text
+  status             AccountStatus @default(connected)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+  syncStates    SyncState[]
+
+  @@unique([userId, provider, externalAccountId])
+  @@index([userId])
+  @@map("connected_accounts")
+}
+
+model Conversation {
+  id                     String   @id @default(uuid())
+  userId                 String
+  connectedAccountId     String
+  externalConversationId String
+  title                  String
+  avatarUrl              String?
+  lastMessagePreview     String?
+  lastActivityAt         DateTime @default(now())
+  unreadCount            Int      @default(0)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connectedAccount ConnectedAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+  messages         Message[]
+
+  @@unique([userId, connectedAccountId, externalConversationId])
+  @@index([userId])
+  @@index([connectedAccountId])
+  @@index([lastActivityAt])
+  @@map("conversations")
+}
+
+enum MessageType {
+  text
+  email
+  unknown
+}
+
+enum MessageDirection {
+  incoming
+  outgoing
+}
+
+enum MessageStatus {
+  pending
+  sent
+  delivered
+  read
+  failed
+}
+
+model Message {
+  id                String           @id @default(uuid())
+  conversationId    String
+  providerMessageId String
+  senderExternalId  String
+  senderName        String
+  senderAddress     String?
+  senderUsername    String?
+  senderAvatarUrl   String?
+  content           String           @db.Text
+  type              MessageType      @default(text)
+  direction         MessageDirection
+  status            MessageStatus    @default(sent)
+  timestamp         DateTime
+  metadata          Json?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, providerMessageId])
+  @@index([conversationId])
+  @@index([timestamp])
+  @@map("messages")
+}
+
+enum SyncStatus {
+  idle
+  syncing
+  error
+}
+
+model SyncState {
+  id                 String     @id @default(uuid())
+  connectedAccountId String
+  cursor             String?
+  lastSyncedAt       DateTime?
+  status             SyncStatus @default(idle)
+  errorMessage       String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  connectedAccount ConnectedAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([connectedAccountId])
+  @@index([connectedAccountId])
+  @@map("sync_states")
+}
