@@ -2,6 +2,7 @@
 import { Mail, MessageCircle, Trash2, Plus } from 'lucide-react';
 import { integrationsApi } from '../api/integrations';
 import { useAuthStore } from '../stores/authStore';
+import { showSuccessNotification, showErrorNotification } from '../utils/notifications';
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
@@ -17,6 +18,10 @@ export default function SettingsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      showSuccessNotification('Account disconnected successfully');
+    },
+    onError: () => {
+      showErrorNotification('Failed to disconnect account');
     },
   });
 
@@ -25,7 +30,7 @@ export default function SettingsPage() {
       const authUrl = await integrationsApi.getGmailAuthUrl();
       window.location.href = authUrl;
     } catch (error) {
-      alert('Failed to connect Gmail');
+      showErrorNotification('Failed to connect Gmail. Please try again.');
     }
   };
 
@@ -36,10 +41,10 @@ export default function SettingsPage() {
         .connectTelegram(botToken)
         .then(() => {
           queryClient.invalidateQueries({ queryKey: ['accounts'] });
-          alert('Telegram bot connected successfully!');
+          showSuccessNotification('Telegram bot connected successfully!');
         })
         .catch(() => {
-          alert('Failed to connect Telegram. Please check your bot token.');
+          showErrorNotification('Failed to connect Telegram. Please check your bot token.');
         });
     }
   };
@@ -90,15 +95,13 @@ export default function SettingsPage() {
                       <Mail className="text-gray-700" size={18} />
                       <h3 className="font-medium text-gray-900">Gmail</h3>
                     </div>
-                    {!accounts.some((a) => a.provider === 'gmail') && (
-                      <button
-                        onClick={handleConnectGmail}
-                        className="btn-primary flex items-center space-x-2"
-                      >
-                        <Plus size={16} />
-                        <span>Connect</span>
-                      </button>
-                    )}
+                    <button
+                      onClick={handleConnectGmail}
+                      className="px-3 py-1.5 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2"
+                    >
+                      <Plus size={16} />
+                      <span>Connect Gmail</span>
+                    </button>
                   </div>
                   <div className="space-y-2">
                     {accounts
@@ -109,18 +112,21 @@ export default function SettingsPage() {
                           className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
                         >
                           <div className="flex items-center space-x-3">
-                            <div className="provider-icon provider-icon-gmail">
-                              <Mail size={16} />
+                            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                              <Mail size={18} className="text-red-600" />
                             </div>
                             <div>
                               <p className="text-sm font-medium text-gray-900">{account.displayName}</p>
-                              <span className="provider-badge provider-badge-gmail">Gmail</span>
+                              <span className="inline-block mt-1 px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded">
+                                Gmail
+                              </span>
                             </div>
                           </div>
                           <button
                             onClick={() => handleDisconnect(account.id, account.displayName)}
                             disabled={disconnectMutation.isPending}
-                            className="btn-icon text-red-600 hover:bg-red-50 disabled:opacity-50"
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                            title="Disconnect account"
                           >
                             <Trash2 size={18} />
                           </button>
@@ -139,15 +145,13 @@ export default function SettingsPage() {
                       <MessageCircle className="text-gray-700" size={18} />
                       <h3 className="font-medium text-gray-900">Telegram</h3>
                     </div>
-                    {!accounts.some((a) => a.provider === 'telegram') && (
-                      <button
-                        onClick={handleConnectTelegram}
-                        className="btn-primary flex items-center space-x-2"
-                      >
-                        <Plus size={16} />
-                        <span>Connect</span>
-                      </button>
-                    )}
+                    <button
+                      onClick={handleConnectTelegram}
+                      className="px-3 py-1.5 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2"
+                    >
+                      <Plus size={16} />
+                      <span>Connect Telegram</span>
+                    </button>
                   </div>
                   <div className="space-y-2">
                     {accounts
@@ -158,18 +162,21 @@ export default function SettingsPage() {
                           className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
                         >
                           <div className="flex items-center space-x-3">
-                            <div className="provider-icon provider-icon-telegram">
-                              <MessageCircle size={16} />
+                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                              <MessageCircle size={18} className="text-blue-600" />
                             </div>
                             <div>
                               <p className="text-sm font-medium text-gray-900">@{account.displayName}</p>
-                              <span className="provider-badge provider-badge-telegram">Telegram</span>
+                              <span className="inline-block mt-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded">
+                                Telegram
+                              </span>
                             </div>
                           </div>
                           <button
                             onClick={() => handleDisconnect(account.id, account.displayName)}
                             disabled={disconnectMutation.isPending}
-                            className="btn-icon text-red-600 hover:bg-red-50 disabled:opacity-50"
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                            title="Disconnect account"
                           >
                             <Trash2 size={18} />
                           </button>
