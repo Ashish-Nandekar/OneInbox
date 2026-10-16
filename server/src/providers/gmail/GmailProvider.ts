@@ -546,12 +546,14 @@ export class GmailProvider implements MessagingProvider {
         } else if (error.message?.includes('recipient')) {
           throw new Error('Invalid recipient email address.');
         }
-      } else if (error.code === 403) {
-        throw new Error('Permission denied. Please reconnect your Gmail account in Settings.');
+      } else if (error.code === 403 || error.code === 429) {
+        throw new Error('Gmail API quota exceeded. Please wait a few minutes and try again.');
       } else if (error.code === 401) {
         throw new Error('Gmail authentication expired. Please reconnect your account in Settings.');
       } else if (error.message?.includes('invalid_grant')) {
         throw new Error('Gmail token expired. Please reconnect your account in Settings.');
+      } else if (error.message?.includes('quota')) {
+        throw new Error('Gmail quota exceeded. Please wait a few minutes before sending more emails.');
       }
       
       throw new Error('Failed to send email. Please check the recipient address and try again.');
