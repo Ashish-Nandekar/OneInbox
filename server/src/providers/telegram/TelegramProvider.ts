@@ -264,9 +264,27 @@ export class TelegramProvider implements MessagingProvider {
         conversationId: conversation.id,
         timestamp,
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending new Telegram message:', error);
-      throw new Error('Failed to send Telegram message');
+      
+      // Provide specific error messages
+      if (error.response?.description) {
+        const description = error.response.description.toLowerCase();
+        
+        if (description.includes('chat not found')) {
+          throw new Error('Chat not found. The user must start a conversation with your bot first by sending /start');
+        } else if (description.includes('bot was blocked')) {
+          throw new Error('Bot was blocked by the user. Ask them to unblock your bot in Telegram.');
+        } else if (description.includes('user is deactivated')) {
+          throw new Error('User account is deactivated or deleted.');
+        } else if (description.includes('invalid')) {
+          throw new Error('Invalid chat ID. Please check the chat ID and try again.');
+        } else {
+          throw new Error(`Telegram API error: ${error.response.description}`);
+        }
+      }
+      
+      throw new Error('Failed to send Telegram message. Please check the chat ID and try again.');
     }
   }
 

@@ -536,9 +536,25 @@ export class GmailProvider implements MessagingProvider {
         threadId,
         timestamp,
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending new Gmail message:', error);
-      throw new Error('Failed to send email');
+      
+      // Provide specific error messages
+      if (error.code === 400) {
+        if (error.message?.includes('Invalid to header')) {
+          throw new Error('Invalid email address. Please check the recipient email and try again.');
+        } else if (error.message?.includes('recipient')) {
+          throw new Error('Invalid recipient email address.');
+        }
+      } else if (error.code === 403) {
+        throw new Error('Permission denied. Please reconnect your Gmail account in Settings.');
+      } else if (error.code === 401) {
+        throw new Error('Gmail authentication expired. Please reconnect your account in Settings.');
+      } else if (error.message?.includes('invalid_grant')) {
+        throw new Error('Gmail token expired. Please reconnect your account in Settings.');
+      }
+      
+      throw new Error('Failed to send email. Please check the recipient address and try again.');
     }
   }
 

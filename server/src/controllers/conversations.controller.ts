@@ -567,34 +567,62 @@ export class ConversationsController {
         });
       }
 
+      console.log(`📤 Composing ${account.provider} message for user ${userId}, account ${accountId}`);
+
       const messagingProvider = providerManager.getProvider(account.provider);
 
       // For Gmail, check if sendNewEmail method exists
       if (account.provider === 'gmail' && 'sendNewEmail' in messagingProvider) {
-        const result = await (messagingProvider as any).sendNewEmail(
-          account,
-          { to, subject, content },
-          userId
-        );
+        try {
+          const result = await (messagingProvider as any).sendNewEmail(
+            account,
+            { to, subject, content },
+            userId
+          );
 
-        return res.status(201).json({
-          success: true,
-          data: result,
-        });
+          console.log(`✅ Gmail email sent successfully: ${result.messageId}`);
+
+          return res.status(201).json({
+            success: true,
+            data: result,
+          });
+        } catch (error: any) {
+          console.error('❌ Gmail send error:', error.message);
+          return res.status(500).json({
+            success: false,
+            error: {
+              code: 'GMAIL_SEND_FAILED',
+              message: error.message || 'Failed to send email',
+            },
+          });
+        }
       }
 
       // For Telegram, check if sendNewMessage method exists
       if (account.provider === 'telegram' && 'sendNewMessage' in messagingProvider) {
-        const result = await (messagingProvider as any).sendNewMessage(
-          account,
-          { chatId: to, content },
-          userId
-        );
+        try {
+          const result = await (messagingProvider as any).sendNewMessage(
+            account,
+            { chatId: to, content },
+            userId
+          );
 
-        return res.status(201).json({
-          success: true,
-          data: result,
-        });
+          console.log(`✅ Telegram message sent successfully: ${result.messageId}`);
+
+          return res.status(201).json({
+            success: true,
+            data: result,
+          });
+        } catch (error: any) {
+          console.error('❌ Telegram send error:', error.message);
+          return res.status(500).json({
+            success: false,
+            error: {
+              code: 'TELEGRAM_SEND_FAILED',
+              message: error.message || 'Failed to send Telegram message',
+            },
+          });
+        }
       }
 
       res.status(400).json({
@@ -604,13 +632,13 @@ export class ConversationsController {
           message: 'Compose message not supported for this provider',
         },
       });
-    } catch (error) {
-      console.error('Compose message error:', error);
+    } catch (error: any) {
+      console.error('❌ Compose message error:', error);
       res.status(500).json({
         success: false,
         error: {
           code: 'COMPOSE_FAILED',
-          message: error instanceof Error ? error.message : 'Failed to send message',
+          message: error.message || 'Failed to send message',
         },
       });
     }

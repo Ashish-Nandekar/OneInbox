@@ -11,6 +11,12 @@ interface ComposeModalProps {
   onClose: () => void;
 }
 
+interface TelegramContact {
+  chatId: string;
+  name: string;
+  username?: string;
+}
+
 export function ComposeModal({ isOpen, onClose }: ComposeModalProps) {
   const [provider, setProvider] = useState<'gmail' | 'telegram' | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
@@ -18,6 +24,7 @@ export function ComposeModal({ isOpen, onClose }: ComposeModalProps) {
   const [subject, setSubject] = useState('');
   const [content, setContent] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [telegramContacts, setTelegramContacts] = useState<TelegramContact[]>([]);
 
   // Fetch connected accounts
   const { data: accounts = [] } = useQuery<ConnectedAccount[]>({
@@ -26,8 +33,37 @@ export function ComposeModal({ isOpen, onClose }: ComposeModalProps) {
     enabled: isOpen,
   });
 
+  // Fetch conversations to get Telegram contacts
+  const { data: conversations = [] } = useQuery<any[]>({
+    queryKey: ['conversations'],
+    queryFn: conversationsApi.getConversations,
+    enabled: isOpen && provider === 'telegram',
+  });
+
   const gmailAccounts = accounts.filter((acc) => acc.provider === 'gmail');
   const telegramAccounts = accounts.filter((acc) => acc.provider === 'telegram');
+
+  // Extract Telegram contacts from conversations
+  useEffect(() => {
+    if (provider === 'telegram' && conversations && selectedAccountId) {
+      const contacts: TelegramContact[] = conversations
+        .filter((conv: any) => 
+          conv.connectedAccount.provider === 'telegram' &&
+          conv.connectedAccountId === selectedAccountId
+        )
+        .map((conv: any) => ({
+          chatId: conv.externalConversationId,
+          name: conv.title,
+          username: conv.metadata?.username,
+        }))
+        .filter((contact, index, self) => 
+          // Remove duplicates based on chatId
+          index === self.findIndex((c) => c.chatId === contact.chatId)
+        );
+      
+      setTelegramContacts(contacts);
+    }
+  }, [provider, conversations, selectedAccountId]);
 
   // Reset form when modal opens/closes
   useEffect(() => {
@@ -66,15 +102,38 @@ export function ComposeModal({ isOpen, onClose }: ComposeModalProps) {
         content,
       });
 
-      showSuccessNotification(
-        provider === 'gmail' ? 'Email sent successfully!' : 'Message sent successfully!'
-      );
+      const successMessage = provider === 'gmail' 
+        ? 'Email sent successfully!' 
+        : 'Telegram message sent successfully!';
+      
+      showSuccessNotification(successMessage);
       onClose();
     } catch (error: any) {
       console.error('Failed to send message:', error);
-      showErrorNotification(
-        error.response?.data?.error?.message || 'Failed to send message'
-      );
+      
+      // Extract meaningful error message
+      let errorMessage = 'Failed to send message';
+      
+      if (error.response?.data?.error?.message) {
+        errorMessage = error.response.data.error.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      // Add context based on provider
+      if (provider === 'telegram') {
+        if (errorMessage.includes('chat not found') || errorMessage.includes('invalid')) {
+          errorMessage = 'Invalid chat ID. Make sure you have started a conversation with your bot first.';
+        } else if (!errorMessage.includes('Telegram')) {
+          errorMessage = `Telegram error: ${errorMessage}`;
+        }
+      } else if (provider === 'gmail') {
+        if (!errorMessage.includes('email') && !errorMessage.includes('Gmail')) {
+          errorMessage = `Email error: ${errorMessage}`;
+        }
+      }
+      
+      showErrorNotification(errorMessage);
     } finally {
       setIsSending(false);
     }
@@ -197,25 +256,53 @@ export function ComposeModal({ isOpen, onClose }: ComposeModalProps) {
               {/* To Field */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {provider === 'gmail' ? 'To (Email Address)' : 'To (Chat ID)'}
+                  {provider === 'gmail' ? 'To (Email Address)' : 'To (Select Contact)'}
                   <span className="text-red-500 ml-1">*</span>
                 </label>
-                <input
-                  type="text"
-                  value={to}
-                  onChange={(e) => setTo(e.target.value)}
-                  placeholder={
-                    provider === 'gmail'
-                      ? 'recipient@example.com'
-                      : 'Telegram Chat ID (e.g., 123456789)'
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  disabled={isSending}
-                />
-                {provider === 'telegram' && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    You can get the chat ID by sending /start to your bot
-                  </p>
+                
+                {provider === 'gmail' ? (
+                  <input
+                    type="email"
+                    value={to}
+                    onChange={(e) => setTo(e.target.value)}
+                    placeholder="recipient@example.com"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    disabled={isSending}
+                  />
+                ) : (
+                  <>
+                    {telegramContacts.length > 0 ? (
+                      <select
+                        value={to}
+                        onChange={(e) => setTo(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        disabled={isSending}
+                      >
+                        <option value="">Select a contact...</option>
+                        {telegramContacts.map((contact) => (
+                          <option key={contact.chatId} value={contact.chatId}>
+                            {contact.name} {contact.username ? `(@${contact.username})` : `(ID: ${contact.chatId})`}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
+                        No contacts available
+                      </div>
+                    )}
+                    
+                    {telegramContacts.length === 0 && (
+                      <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-xs text-blue-800 font-medium mb-1">
+                          💡 No Telegram contacts yet
+                        </p>
+                        <p className="text-xs text-blue-700">
+                          To send messages, users must first send <code className="bg-blue-100 px-1 rounded">/start</code> to your bot.
+                          Once someone messages your bot, they will appear in this list.
+                        </p>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
