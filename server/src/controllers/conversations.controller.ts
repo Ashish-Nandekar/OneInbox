@@ -372,6 +372,186 @@ export class ConversationsController {
       });
     }
   }
+
+  // Search messages and conversations
+  async searchMessages(req: Request, res: Response) {
+    try {
+      const userId = req.user!.id;
+      const { q, provider, dateFrom, dateTo, limit = '50' } = req.query;
+
+      if (!q || typeof q !== 'string' || q.trim().length < 2) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'INVALID_QUERY',
+            message: 'Search query must be at least 2 characters',
+          },
+        });
+      }
+
+      const searchQuery = q.trim();
+      const maxResults = Math.min(parseInt(limit as string, 10) || 50, 100);
+
+      // Build where clause
+      const whereClause: any = {
+        conversation: {
+          userId,
+        },
+        OR: [
+          {
+            content: {
+              contains: searchQuery,
+              mode: 'insensitive',
+            },
+          },
+          {
+            senderName: {
+              contains: searchQuery,
+              mode: 'insensitive',
+            },
+          },
+        ],
+      };
+
+      // Filter by provider
+      if (provider && typeof provider === 'string') {
+        whereClause.conversation = {
+          ...whereClause.conversation,
+          connectedAccount: {
+            provider: provider,
+          },
+        };
+      }
+
+      // Filter by date range
+      if (dateFrom || dateTo) {
+        whereClause.timestamp = {};
+        if (dateFrom) whereClause.timestamp.gte = new Date(dateFrom as string);
+        if (dateTo) whereClause.timestamp.lte = new Date(dateTo as string);
+      }
+
+      // Search messages
+      const messages = await prisma.message.findMany({
+        where: whereClause,
+        include: {
+          conversation: {
+            include: {
+              connectedAccount: {
+                select: {
+                  provider: true,
+                  displayName: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          timestamp: 'desc',
+        },
+        take: maxResults,
+      });
+
+      // Format results with conversation context
+      const results = messages.map((message) => ({
+        messageId: message.id,
+        conversationId: message.conversationId,
+        conversationTitle: message.conversation.title,
+        provider: message.conversation.connectedAccount.provider,
+        senderName: message.senderName,
+        content: message.content,
+        timestamp: message.timestamp,
+        direction: message.direction,
+        // Include snippet with highlight context
+        snippet: this.createSnippet(message.content, searchQuery),
+      }));
+
+      res.json({
+        success: true,
+        data: {
+          query: searchQuery,
+          totalResults: results.length,
+          results,
+        },
+      });
+    } catch (error) {
+      console.error('Search error:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'SEARCH_FAILED',
+          message: 'Failed to search messages',
+        },
+      });
+    }
+  }
+
+  // Mark all conversations as read for a provider
+  async markAllReadByProvider(req: Request, res: Response) {
+    try {
+      const { provider } = req.params;
+      const userId = req.user!.id;
+
+      // Update all conversations for this provider
+      const result = await prisma.conversation.updateMany({
+        where: {
+          userId,
+          connectedAccount: {
+            provider: provider as any,
+          },
+          unreadCount: {
+            gt: 0,
+          },
+        },
+        data: {
+          unreadCount: 0,
+        },
+      });
+
+      // Emit update via Socket.IO
+      io.to(`user:${userId}`).emit('conversations:updated', {
+        provider,
+        action: 'mark_all_read',
+      });
+
+      res.json({
+        success: true,
+        data: {
+          provider,
+          updated: result.count,
+        },
+      });
+    } catch (error) {
+      console.error('Mark all read error:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'UPDATE_FAILED',
+          message: 'Failed to mark conversations as read',
+        },
+      });
+    }
+  }
+
+  // Helper to create search snippet
+  private createSnippet(content: string, query: string, maxLength: number = 150): string {
+    const lowerContent = content.toLowerCase();
+    const lowerQuery = query.toLowerCase();
+    const index = lowerContent.indexOf(lowerQuery);
+
+    if (index === -1) {
+      return content.substring(0, maxLength) + (content.length > maxLength ? '...' : '');
+    }
+
+    const start = Math.max(0, index - 50);
+    const end = Math.min(content.length, index + query.length + 50);
+    
+    let snippet = content.substring(start, end);
+    
+    if (start > 0) snippet = '...' + snippet;
+    if (end < content.length) snippet = snippet + '...';
+    
+    return snippet;
+  }
 }
 
 export const conversationsController = new ConversationsController();

@@ -27,7 +27,7 @@ export const config = {
   },
   
   urls: {
-    client: process.env.CLIENT_URL || 'http://localhost:5173',
+    client: process.env.CLIENT_URL || 'http://localhost:5174',
     server: process.env.SERVER_URL || 'http://localhost:3000',
   },
   

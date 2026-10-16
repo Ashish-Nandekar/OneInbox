@@ -230,6 +230,26 @@ export class GmailProvider implements MessagingProvider {
       if (error && typeof error === 'object' && 'code' in error) {
         const apiError = error as any;
         
+        // Handle invalid_grant error (expired/revoked token)
+        if (apiError.code === 400 && (apiError.message?.includes('invalid_grant') || apiError.error === 'invalid_grant')) {
+          console.error(`❌ Gmail token expired or revoked for account ${account.id}. User needs to reconnect.`);
+          
+          // Emit socket event to notify user
+          try {
+            const { io } = require('../app');
+            io.to(`user:${userId}`).emit('account:needs_reconnection', {
+              accountId: account.id,
+              provider: 'gmail',
+              displayName: account.displayName,
+              message: 'Your Gmail connection has expired. Please reconnect your account in Settings.',
+            });
+          } catch (socketError) {
+            console.error('Failed to emit reconnection event:', socketError);
+          }
+          
+          throw new Error('Gmail token expired. Please reconnect your account in Settings.');
+        }
+        
         if (apiError.code === 403 || apiError.status === 403) {
           console.error('Gmail API quota exceeded - will retry on next sync');
           // Don't throw - just log and continue
@@ -410,23 +430,43 @@ export class GmailProvider implements MessagingProvider {
   }
 
   private getMessageBody(message: any): string {
-    let body = '';
+    let htmlBody = '';
+    let textBody = '';
 
     const getBody = (part: any): void => {
-      if (part.mimeType === 'text/plain' && part.body?.data) {
-        body = Buffer.from(part.body.data, 'base64').toString('utf-8');
+      if (part.mimeType === 'text/html' && part.body?.data) {
+        htmlBody = Buffer.from(part.body.data, 'base64').toString('utf-8');
+      } else if (part.mimeType === 'text/plain' && part.body?.data) {
+        textBody = Buffer.from(part.body.data, 'base64').toString('utf-8');
       } else if (part.parts) {
         part.parts.forEach(getBody);
       }
     };
 
     if (message.payload?.body?.data) {
-      body = Buffer.from(message.payload.body.data, 'base64').toString('utf-8');
+      const decoded = Buffer.from(message.payload.body.data, 'base64').toString('utf-8');
+      if (message.payload.mimeType === 'text/html') {
+        htmlBody = decoded;
+      } else {
+        textBody = decoded;
+      }
     } else if (message.payload?.parts) {
       message.payload.parts.forEach(getBody);
     }
 
-    return body || '(No content)';
+    // Prefer HTML body, fallback to plain text, preserve line breaks in plain text
+    if (htmlBody) {
+      return htmlBody;
+    } else if (textBody) {
+      // Convert plain text to HTML with preserved formatting
+      return textBody
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br>');
+    }
+    
+    return '(No content)';
   }
 
   private getMessagePreview(message: any): string {

@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import Sidebar from '../components/Sidebar';
 import ConversationList from '../components/ConversationList';
+import ReconnectionBanner from '../components/ReconnectionBanner';
 import { useAppStore } from '../stores/appStore';
 
 interface InboxLayoutProps {
@@ -12,6 +13,9 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
+      {/* Global Reconnection Banner */}
+      <ReconnectionBanner />
+      
       {/* Sidebar */}
       <Sidebar />
 

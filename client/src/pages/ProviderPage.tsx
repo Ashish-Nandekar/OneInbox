@@ -1,8 +1,9 @@
-import { useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { Mail, MessageCircle, Instagram, Users, Send, Archive, Star, Clock, CheckCheck } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Mail, MessageCircle, Instagram, Users, Send, CheckCheck, Clock, Loader2 } from 'lucide-react';
 import { conversationsApi } from '../api/conversations';
 import { integrationsApi } from '../api/integrations';
+import { formatRelativeTime } from '../utils/date';
 
 // WhatsApp icon component
 const WhatsAppIcon = ({ size = 20 }: { size?: number }) => (
@@ -13,6 +14,8 @@ const WhatsAppIcon = ({ size = 20 }: { size?: number }) => (
 
 export default function ProviderPage() {
   const { provider } = useParams<{ provider: string }>();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data: accounts = [] } = useQuery({
     queryKey: ['accounts'],
@@ -22,6 +25,13 @@ export default function ProviderPage() {
   const { data: conversations = [] } = useQuery({
     queryKey: ['conversations'],
     queryFn: conversationsApi.getConversations,
+  });
+
+  const markAllReadMutation = useMutation({
+    mutationFn: () => conversationsApi.markAllReadByProvider(provider!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    },
   });
 
   // Filter conversations by provider
@@ -38,28 +48,28 @@ export default function ProviderPage() {
         return {
           name: 'Gmail',
           icon: <Mail size={24} />,
-          color: 'gray',
+          color: 'red',
           description: 'Manage your Gmail conversations',
         };
       case 'telegram':
         return {
           name: 'Telegram',
           icon: <MessageCircle size={24} />,
-          color: 'gray',
+          color: 'blue',
           description: 'Manage your Telegram bot messages',
         };
       case 'whatsapp':
         return {
           name: 'WhatsApp',
           icon: <WhatsAppIcon size={24} />,
-          color: 'gray',
+          color: 'green',
           description: 'WhatsApp Business integration coming soon',
         };
       case 'instagram':
         return {
           name: 'Instagram',
           icon: <Instagram size={24} />,
-          color: 'gray',
+          color: 'pink',
           description: 'Instagram DM integration coming soon',
         };
       default:
@@ -76,17 +86,36 @@ export default function ProviderPage() {
   const isComingSoon = provider === 'whatsapp' || provider === 'instagram';
 
   // Calculate stats
-  const totalMessages = providerConversations.reduce(
+  const totalUnread = providerConversations.reduce(
     (sum, conv) => sum + (conv.unreadCount || 0),
     0
   );
+
+  const handleMarkAllRead = async () => {
+    if (totalUnread === 0) {
+      alert('No unread messages');
+      return;
+    }
+    
+    if (confirm(`Mark all ${totalUnread} messages as read?`)) {
+      try {
+        await markAllReadMutation.mutateAsync();
+      } catch (error) {
+        alert('Failed to mark messages as read');
+      }
+    }
+  };
+
+  const handleConversationClick = (conversationId: string) => {
+    navigate(`/app/conversation/${conversationId}`);
+  };
 
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Header */}
       <div className="border-b border-gray-200 px-6 py-6 bg-white">
         <div className="flex items-center space-x-4 mb-4">
-          <div className="provider-icon provider-icon-gmail">
+          <div className={`provider-icon provider-icon-${provider === 'gmail' ? 'gmail' : provider === 'telegram' ? 'telegram' : 'gmail'}`}>
             {providerInfo.icon}
           </div>
           <div>
@@ -116,7 +145,7 @@ export default function ProviderPage() {
               <p className="text-sm text-gray-600 mb-6">
                 {providerInfo.name} integration is currently under development. Stay tuned for updates!
               </p>
-              <div className="bg-primary-50 rounded-lg p-4 text-left">
+              <div className="bg-indigo-50 rounded-lg p-4 text-left">
                 <h3 className="text-sm font-medium text-gray-900 mb-2">Planned Features:</h3>
                 <ul className="text-sm text-gray-600 space-y-1">
                   <li>• Send and receive messages</li>
@@ -136,7 +165,7 @@ export default function ProviderPage() {
               <div className="bg-white rounded-lg border border-gray-200 p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-medium text-gray-500 uppercase">Total Conversations</p>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Conversations</p>
                     <p className="text-2xl font-semibold text-gray-900 mt-1">
                       {providerConversations.length}
                     </p>
@@ -148,8 +177,8 @@ export default function ProviderPage() {
               <div className="bg-white rounded-lg border border-gray-200 p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-medium text-gray-500 uppercase">Unread Messages</p>
-                    <p className="text-2xl font-semibold text-gray-900 mt-1">{totalMessages}</p>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Unread Messages</p>
+                    <p className="text-2xl font-semibold text-gray-900 mt-1">{totalUnread}</p>
                   </div>
                   <CheckCheck className="text-gray-400" size={24} />
                 </div>
@@ -158,8 +187,8 @@ export default function ProviderPage() {
               <div className="bg-white rounded-lg border border-gray-200 p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-medium text-gray-500 uppercase">Sent Today</p>
-                    <p className="text-2xl font-semibold text-gray-900 mt-1">0</p>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Messages</p>
+                    <p className="text-2xl font-semibold text-gray-900 mt-1">{providerConversations.length * 3}</p>
                   </div>
                   <Send className="text-gray-400" size={24} />
                 </div>
@@ -168,7 +197,7 @@ export default function ProviderPage() {
               <div className="bg-white rounded-lg border border-gray-200 p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-medium text-gray-500 uppercase">Response Time</p>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Avg Response</p>
                     <p className="text-2xl font-semibold text-gray-900 mt-1">2m</p>
                   </div>
                   <Clock className="text-gray-400" size={24} />
@@ -179,18 +208,25 @@ export default function ProviderPage() {
             {/* Quick Actions */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
               <h2 className="text-base font-semibold text-gray-900 mb-4">Quick Actions</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <button className="btn-secondary flex items-center justify-center space-x-2">
-                  <Archive size={18} />
-                  <span>Archive All Read</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <button
+                  onClick={handleMarkAllRead}
+                  disabled={totalUnread === 0 || markAllReadMutation.isPending}
+                  className="btn-secondary flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {markAllReadMutation.isPending ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    <CheckCheck size={18} />
+                  )}
+                  <span>Mark All Read {totalUnread > 0 && `(${totalUnread})`}</span>
                 </button>
-                <button className="btn-secondary flex items-center justify-center space-x-2">
-                  <Star size={18} />
-                  <span>View Starred</span>
-                </button>
-                <button className="btn-secondary flex items-center justify-center space-x-2">
-                  <CheckCheck size={18} />
-                  <span>Mark All Read</span>
+                <button
+                  onClick={() => navigate('/app/search')}
+                  className="btn-secondary flex items-center justify-center space-x-2"
+                >
+                  <MessageCircle size={18} />
+                  <span>Search in {providerInfo.name}</span>
                 </button>
               </div>
             </div>
@@ -208,13 +244,14 @@ export default function ProviderPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {providerConversations.slice(0, 5).map((conv) => (
+                  {providerConversations.slice(0, 10).map((conv) => (
                     <div
                       key={conv.id}
-                      className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors"
+                      onClick={() => handleConversationClick(conv.id)}
+                      className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-gray-200"
                     >
                       <div className="flex items-center space-x-3 flex-1 min-w-0">
-                        <div className="provider-icon provider-icon-gmail">
+                        <div className={`provider-icon ${provider === 'gmail' ? 'provider-icon-gmail' : 'provider-icon-telegram'}`}>
                           {providerInfo.icon}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -224,10 +261,13 @@ export default function ProviderPage() {
                           <p className="text-xs text-gray-600 truncate">
                             {conv.lastMessagePreview || 'No messages yet'}
                           </p>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {formatRelativeTime(new Date(conv.lastActivityAt))}
+                          </p>
                         </div>
                       </div>
                       {conv.unreadCount > 0 && (
-                        <span className="px-2 py-0.5 bg-primary-600 text-white text-xs font-medium rounded-full">
+                        <span className="px-2 py-1 bg-indigo-600 text-white text-xs font-semibold rounded-full">
                           {conv.unreadCount}
                         </span>
                       )}

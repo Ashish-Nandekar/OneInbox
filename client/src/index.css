@@ -30,24 +30,24 @@
 @layer components {
   /* Button Styles */
   .btn-primary {
-    @apply px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors;
+    @apply px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 shadow-sm;
   }
 
   .btn-secondary {
-    @apply px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors;
+    @apply px-4 py-2.5 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150;
   }
 
   .btn-ghost {
-    @apply px-3 py-2 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors;
+    @apply px-3 py-2 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-150;
   }
 
   .btn-icon {
-    @apply p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors;
+    @apply p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-150;
   }
 
   /* Input Styles */
   .input-field {
-    @apply w-full px-3 py-2 text-sm border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 transition-colors;
+    @apply w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-500 transition-all duration-150;
   }
 
   /* Provider Badge */
@@ -56,23 +56,226 @@
   }
 
   .provider-badge-gmail {
-    @apply bg-gray-100 text-gray-700;
+    @apply bg-red-50 text-red-700 border border-red-100;
   }
 
   .provider-badge-telegram {
-    @apply bg-gray-100 text-gray-700;
+    @apply bg-blue-50 text-blue-700 border border-blue-100;
   }
 
   /* Provider Icon Container */
   .provider-icon {
-    @apply flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center;
+    @apply flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-150;
   }
 
   .provider-icon-gmail {
-    @apply bg-gray-100 text-gray-700;
+    @apply bg-red-50 text-red-600 border border-red-100;
   }
 
   .provider-icon-telegram {
-    @apply bg-gray-100 text-gray-700;
+    @apply bg-blue-50 text-blue-600 border border-blue-100;
+  }
+
+  /* Card Styles */
+  .card {
+    @apply bg-white rounded-lg border border-gray-200 shadow-sm;
+  }
+
+  .card-hover {
+    @apply hover:shadow-md hover:border-gray-300 transition-all duration-200;
+  }
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Gmail Content Styling */
+.gmail-content {
+  line-height: 1.6;
+}
+
+.gmail-content p {
+  margin: 0.5em 0;
+}
+
+.gmail-content a {
+  color: #4f46e5;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.gmail-content a:hover {
+  color: #4338ca;
+}
+
+.gmail-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  margin: 0.5em 0;
+}
+
+.gmail-content blockquote {
+  border-left: 3px solid #e5e7eb;
+  padding-left: 1em;
+  margin: 0.5em 0;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.gmail-content pre {
+  background-color: #f3f4f6;
+  padding: 0.75em;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 0.875em;
+  border: 1px solid #e5e7eb;
+}
+
+.gmail-content code {
+  background-color: #f3f4f6;
+  padding: 0.125em 0.375em;
+  border-radius: 4px;
+  font-size: 0.875em;
+  border: 1px solid #e5e7eb;
+}
+
+.gmail-content ul,
+.gmail-content ol {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+.gmail-content li {
+  margin: 0.25em 0;
+}
+
+.gmail-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.5em 0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.gmail-content table th,
+.gmail-content table td {
+  border: 1px solid #e5e7eb;
+  padding: 0.5em 0.75em;
+  text-align: left;
+}
+
+.gmail-content table th {
+  background-color: #f9fafb;
+  font-weight: 600;
+}
+
+/* Smooth transitions for interactive elements */
+button,
+a,
+input,
+textarea,
+select {
+  transition: all 150ms ease-in-out;
+}
+
+/* Focus visible for accessibility */
+*:focus-visible {
+  outline: 2px solid #4f46e5;
+  outline-offset: 2px;
+}
+
+/* Loading animation */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.loading-shimmer {
+  animation: shimmer 2s infinite linear;
+  background: linear-gradient(to right, #f3f4f6 0%, #e5e7eb 20%, #f3f4f6 40%, #f3f4f6 100%);
+  background-size: 1000px 100%;
+}
+
+/* Toast Notification Animations */
+@keyframes slide-in {
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-out {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out forwards;
+}
+
+/* Rate Limit Banner */
+.rate-limit-banner {
+  background: linear-gradient(90deg, #fef3c7 0%, #fde68a 100%);
+  border-left: 4px solid #f59e0b;
+  padding: 12px 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.rate-limit-progress {
+  height: 4px;
+  background: #fde68a;
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.rate-limit-progress::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: #f59e0b;
+  animation: progress-fill var(--duration) linear forwards;
+}
+
+@keyframes progress-fill {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
   }
 }

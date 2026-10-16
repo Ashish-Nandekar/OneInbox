@@ -54,22 +54,71 @@ app.use(cors({
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // Limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
+  message: { 
+    success: false,
+    error: {
+      code: 'RATE_LIMIT_EXCEEDED',
+      message: 'Too many requests from this IP, please try again later.',
+    }
+  },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  handler: (req, res) => {
+    res.status(429).json({
+      success: false,
+      error: {
+        code: 'RATE_LIMIT_EXCEEDED',
+        message: 'Too many requests. Please slow down and try again in a few minutes.',
+      },
+    });
+  },
 });
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5, // Limit auth attempts
-  message: 'Too many authentication attempts, please try again later.',
+  max: 10, // Limit auth attempts
+  message: {
+    success: false,
+    error: {
+      code: 'AUTH_RATE_LIMIT_EXCEEDED',
+      message: 'Too many authentication attempts, please try again later.',
+    }
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    res.status(429).json({
+      success: false,
+      error: {
+        code: 'AUTH_RATE_LIMIT_EXCEEDED',
+        message: 'Too many login attempts. Please wait 15 minutes before trying again.',
+      },
+    });
+  },
 });
 
 // Rate limiter for message sending
 const messageLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 20, // 20 messages per minute
-  message: 'Too many messages sent, please slow down.',
+  message: {
+    success: false,
+    error: {
+      code: 'MESSAGE_RATE_LIMIT_EXCEEDED',
+      message: 'Too many messages sent, please slow down.',
+    }
+  },
   standardHeaders: true,
   legacyHeaders: false,
+  handler: (req, res) => {
+    res.status(429).json({
+      success: false,
+      error: {
+        code: 'MESSAGE_RATE_LIMIT_EXCEEDED',
+        message: 'You are sending messages too quickly. Please wait a moment before sending more.',
+      },
+    });
+  },
 });
 
 app.use('/api/', limiter);

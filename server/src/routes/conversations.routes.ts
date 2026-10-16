@@ -8,6 +8,8 @@ const router = Router();
 router.use(authenticateToken);
 
 router.get('/', conversationsController.getConversations.bind(conversationsController));
+router.get('/search', conversationsController.searchMessages.bind(conversationsController));
+router.post('/provider/:provider/mark-all-read', conversationsController.markAllReadByProvider.bind(conversationsController));
 router.get('/:id', conversationsController.getConversation.bind(conversationsController));
 router.get('/:id/messages', conversationsController.getMessages.bind(conversationsController));
 router.post('/:id/messages', conversationsController.sendMessage.bind(conversationsController));
