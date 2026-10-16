@@ -50,10 +50,10 @@ app.use(cors({
   credentials: true,
 }));
 
-// Rate limiting
+// Rate limiting - More lenient for development
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: 1000, // Limit each IP to 1000 requests per windowMs (increased from 100)
   message: { 
     success: false,
     error: {
@@ -76,7 +76,7 @@ const limiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10, // Limit auth attempts
+  max: 50, // Limit auth attempts (increased from 10)
   message: {
     success: false,
     error: {
